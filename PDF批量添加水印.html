@@ -1,0 +1,1683 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>批量PDF水印添加工具 - 优化版</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+    <script src="https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@pdf-lib/fontkit@1.1.1/dist/fontkit.umd.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
+        }
+        
+        body {
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            min-height: 100vh;
+            padding: 20px;
+            color: #333;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        header {
+            text-align: center;
+            margin-bottom: 30px;
+            padding: 20px;
+            background-color: rgba(255, 255, 255, 0.9);
+            border-radius: 15px;
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+        }
+        
+        h1 {
+            color: #2c3e50;
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+        }
+        
+        .subtitle {
+            color: #7f8c8d;
+            font-size: 1.1rem;
+        }
+        
+        .main-content {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 25px;
+            margin-bottom: 30px;
+        }
+        
+        .panel {
+            flex: 1;
+            min-width: 300px;
+            background-color: rgba(255, 255, 255, 0.95);
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+        }
+        
+        .panel h2 {
+            color: #3498db;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #f1f1f1;
+            font-size: 1.8rem;
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #2c3e50;
+        }
+        
+        input, textarea, select {
+            width: 100%;
+            padding: 12px 15px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            font-size: 16px;
+            transition: border 0.3s;
+        }
+        
+        input:focus, textarea:focus, select:focus {
+            border-color: #3498db;
+            outline: none;
+        }
+        
+        textarea {
+            min-height: 120px;
+            resize: vertical;
+        }
+        
+        .range-container {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        
+        .range-value {
+            min-width: 50px;
+            font-weight: bold;
+            color: #3498db;
+        }
+        
+        .color-preview {
+            width: 40px;
+            height: 40px;
+            border-radius: 8px;
+            border: 2px solid #ddd;
+            cursor: pointer;
+        }
+        
+        .file-upload-area {
+            border: 3px dashed #3498db;
+            border-radius: 12px;
+            padding: 40px 20px;
+            text-align: center;
+            background-color: #f8fafc;
+            cursor: pointer;
+            transition: all 0.3s;
+            margin-bottom: 20px;
+        }
+        
+        .file-upload-area:hover {
+            background-color: #e8f4fc;
+            border-color: #2980b9;
+        }
+        
+        .file-upload-area i {
+            font-size: 48px;
+            color: #3498db;
+            margin-bottom: 15px;
+        }
+        
+        .file-list {
+            max-height: 200px;
+            overflow-y: auto;
+            margin-top: 15px;
+            padding: 10px;
+            border: 1px solid #eee;
+            border-radius: 8px;
+            background-color: #f9f9f9;
+        }
+        
+        .file-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 12px;
+            border-bottom: 1px solid #eee;
+            align-items: center;
+        }
+        
+        .file-item:last-child {
+            border-bottom: none;
+        }
+        
+        .file-name {
+            flex-grow: 1;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            margin-right: 10px;
+        }
+        
+        .file-size {
+            color: #7f8c8d;
+            font-size: 0.9rem;
+            min-width: 70px;
+        }
+        
+        .file-status {
+            font-size: 0.85rem;
+            padding: 2px 8px;
+            border-radius: 10px;
+            min-width: 70px;
+            text-align: center;
+        }
+        
+        .status-pending {
+            background-color: #f8f9fa;
+            color: #6c757d;
+        }
+        
+        .status-processing {
+            background-color: #fff3cd;
+            color: #856404;
+        }
+        
+        .status-completed {
+            background-color: #d4edda;
+            color: #155724;
+        }
+        
+        .status-error {
+            background-color: #f8d7da;
+            color: #721c24;
+        }
+        
+        .preview-container {
+            margin-top: 25px;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 10px;
+            background-color: #f9f9f9;
+            text-align: center;
+        }
+        
+        .preview-title {
+            margin-bottom: 15px;
+            font-weight: 600;
+            color: #2c3e50;
+        }
+        
+        .buttons {
+            display: flex;
+            gap: 15px;
+            margin-top: 30px;
+        }
+        
+        .btn {
+            flex: 1;
+            padding: 15px 25px;
+            border: none;
+            border-radius: 8px;
+            font-size: 18px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .btn-primary {
+            background-color: #3498db;
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background-color: #2980b9;
+            transform: translateY(-3px);
+            box-shadow: 0 5px 15px rgba(52, 152, 219, 0.3);
+        }
+        
+        .btn-success {
+            background-color: #27ae60;
+            color: white;
+        }
+        
+        .btn-success:hover {
+            background-color: #219653;
+            transform: translateY(-3px);
+            box-shadow: 0 5px 15px rgba(39, 174, 96, 0.3);
+        }
+        
+        .btn-secondary {
+            background-color: #95a5a6;
+            color: white;
+        }
+        
+        .btn-secondary:hover {
+            background-color: #7f8c8d;
+            transform: translateY(-3px);
+        }
+        
+        .btn:disabled {
+            background-color: #bdc3c7;
+            cursor: not-allowed;
+            transform: none !important;
+            box-shadow: none !important;
+        }
+        
+        .progress-container {
+            margin-top: 20px;
+            display: none;
+        }
+        
+        .progress-bar {
+            height: 20px;
+            background-color: #ecf0f1;
+            border-radius: 10px;
+            overflow: hidden;
+            margin-bottom: 10px;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            background-color: #2ecc71;
+            width: 0%;
+            transition: width 0.5s;
+        }
+        
+        .progress-text {
+            text-align: center;
+            font-weight: 600;
+            color: #2c3e50;
+        }
+        
+        .result-container {
+            display: none;
+            margin-top: 25px;
+            padding: 20px;
+            border-radius: 10px;
+            background-color: #e8f6f3;
+            border: 2px solid #2ecc71;
+        }
+        
+        .result-container h3 {
+            color: #27ae60;
+            margin-bottom: 10px;
+        }
+        
+        .result-list {
+            list-style-type: none;
+            margin-top: 15px;
+            margin-bottom: 15px;
+        }
+        
+        .result-list li {
+            padding: 8px 0;
+            border-bottom: 1px solid #d5f4e6;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .result-list li:last-child {
+            border-bottom: none;
+        }
+        
+        .download-link {
+            color: #3498db;
+            text-decoration: none;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .download-link:hover {
+            text-decoration: underline;
+        }
+        
+        .batch-download-container {
+            margin-top: 15px;
+            padding-top: 15px;
+            border-top: 2px dashed #2ecc71;
+            text-align: center;
+        }
+        
+        .batch-download-info {
+            margin-bottom: 15px;
+            font-size: 1rem;
+            color: #2c3e50;
+        }
+        
+        .footer {
+            text-align: center;
+            margin-top: 40px;
+            padding: 20px;
+            color: #7f8c8d;
+            font-size: 0.9rem;
+        }
+        
+        @media (max-width: 768px) {
+            .main-content {
+                flex-direction: column;
+            }
+            
+            .buttons {
+                flex-direction: column;
+            }
+            
+            h1 {
+                font-size: 2rem;
+            }
+            
+            .file-item {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 5px;
+            }
+            
+            .file-name, .file-size, .file-status {
+                width: 100%;
+            }
+        }
+        
+        /* 水印预览样式 */
+        .watermark-preview {
+            position: relative;
+            width: 100%;
+            height: 300px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            background-color: white;
+            overflow: hidden;
+            margin-top: 10px;
+        }
+        
+        .watermark-text {
+            position: absolute;
+            color: rgba(233, 235, 237, 0.6);
+            font-weight: bold;
+            white-space: pre;
+            pointer-events: none;
+        }
+        
+        .notification {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 15px 20px;
+            border-radius: 8px;
+            color: white;
+            font-weight: 600;
+            z-index: 1000;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+            display: none;
+            align-items: center;
+            gap: 10px;
+            animation: slideIn 0.3s ease-out;
+        }
+        
+        .notification.success {
+            background-color: #27ae60;
+        }
+        
+        .notification.error {
+            background-color: #e74c3c;
+        }
+        
+        .notification.info {
+            background-color: #3498db;
+        }
+        
+        @keyframes slideIn {
+            from {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+        
+        .spinner {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            border-top-color: white;
+            animation: spin 1s ease-in-out infinite;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        .color-input-container {
+            display: flex;
+            gap: 15px;
+            align-items: center;
+        }
+        
+        .color-input-container input[type="color"] {
+            flex: 1;
+        }
+        
+        .rgb-inputs {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            margin-top: 10px;
+        }
+        
+        .rgb-input {
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .rgb-input label {
+            font-size: 0.85rem;
+            margin-bottom: 5px;
+        }
+        
+        .rgb-input input {
+            padding: 8px;
+            font-size: 14px;
+        }
+        
+        .font-options {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+            margin-top: 10px;
+        }
+        
+        .font-option {
+            padding: 10px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .font-option:hover {
+            border-color: #3498db;
+            background-color: #f0f8ff;
+        }
+        
+        .font-option.selected {
+            border-color: #3498db;
+            background-color: #e8f4fc;
+            font-weight: bold;
+        }
+        
+        .font-upload-area {
+            border: 2px dashed #ddd;
+            border-radius: 8px;
+            padding: 20px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s;
+            margin-top: 10px;
+        }
+        
+        .font-upload-area:hover {
+            border-color: #3498db;
+            background-color: #f8fafc;
+        }
+        
+        .font-upload-area i {
+            font-size: 24px;
+            color: #3498db;
+            margin-bottom: 10px;
+        }
+        
+        .font-info {
+            margin-top: 10px;
+            font-size: 0.9rem;
+            color: #7f8c8d;
+        }
+        
+        .font-custom-option {
+            grid-column: span 2;
+            background-color: #f8f9fa;
+        }
+        
+        .option-group {
+            margin-bottom: 20px;
+            padding: 15px;
+            background-color: #f8f9fa;
+            border-radius: 8px;
+            border: 1px solid #eee;
+        }
+        
+        .option-group h4 {
+            color: #2c3e50;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .checkbox-group {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+        
+        .checkbox-group input[type="checkbox"] {
+            width: auto;
+        }
+        
+        .checkbox-group label {
+            margin-bottom: 0;
+            font-weight: normal;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1><i class="fas fa-water"></i> 批量PDF水印添加工具</h1>
+            <p class="subtitle">上传多个PDF文件，添加自定义多行水印，支持中文，调整角度、字体、颜色和透明度，可批量下载</p>
+        </header>
+        
+        <div class="main-content">
+            <div class="panel">
+                <h2><i class="fas fa-cog"></i> 水印设置</h2>
+                
+                <div class="form-group">
+                    <label for="watermarkText">水印文本 (多行支持，支持中文)</label>
+                    <textarea id="watermarkText" placeholder="输入水印内容，每行将作为单独水印文本...">内部文件\n请勿外传\n2024年</textarea>
+                </div>
+                
+                <div class="form-group">
+                    <label for="watermarkAngle">水印角度: <span id="angleValue">330</span>°</label>
+                    <div class="range-container">
+                        <input type="range" id="watermarkAngle" min="0" max="360" value="330" class="slider">
+                        <div class="range-value" id="angleValueDisplay">330°</div>
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label>字体大小</label>
+                    <select id="fontSize">
+                        <option value="24" selected>中 (24pt)</option>
+                        <option value="18">小 (18pt)</option>
+                        <option value="32">大 (32pt)</option>
+                        <option value="48">特大 (48pt)</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label>字体样式</label>
+                    <div class="font-options">
+                        <div class="font-option selected" data-font="Helvetica" id="fontHelvetica">
+                            Helvetica (英文)
+                        </div>
+                        <div class="font-option" data-font="Times-Roman" id="fontTimesRoman">
+                            Times Roman (英文)
+                        </div>
+                        <div class="font-option" data-font="Courier" id="fontCourier">
+                            Courier (英文)
+                        </div>
+                        <div class="font-option font-custom-option" id="fontCustomOption">
+                            <i class="fas fa-upload"></i> 上传自定义字体 (支持中文)
+                            <input type="file" id="fontFile" accept=".ttf,.otf" style="display: none;">
+                        </div>
+                    </div>
+                    <input type="hidden" id="fontFamily" value="Helvetica">
+                    <div class="font-info" id="fontInfo">
+                        当前字体: Helvetica (标准字体，不支持中文)
+                    </div>
+                    
+                    <div class="font-upload-area" id="fontUploadArea" style="display: none;">
+                        <div class="font-upload-area">
+                            <i class="fas fa-file-upload"></i>
+                            <h4>上传自定义字体文件</h4>
+                            <p>支持.ttf和.otf格式的中文字体文件</p>
+                            <p style="color: #e74c3c; font-size: 0.8rem; margin-top: 5px;">
+                                注意：请确保您有权使用该字体文件
+                            </p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label for="textColor">文字颜色 (RGB: 233, 235, 237)</label>
+                    <div class="color-input-container">
+                        <input type="color" id="textColor" value="#E9EBED">
+                        <div class="color-preview" id="colorPreview" style="background-color: #E9EBED;"></div>
+                    </div>
+                    <div class="rgb-inputs">
+                        <div class="rgb-input">
+                            <label for="colorR">R (红)</label>
+                            <input type="number" id="colorR" min="0" max="255" value="233">
+                        </div>
+                        <div class="rgb-input">
+                            <label for="colorG">G (绿)</label>
+                            <input type="number" id="colorG" min="0" max="255" value="235">
+                        </div>
+                        <div class="rgb-input">
+                            <label for="colorB">B (蓝)</label>
+                            <input type="number" id="colorB" min="0" max="255" value="237">
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label for="opacity">透明度: <span id="opacityValue">0.6</span></label>
+                    <div class="range-container">
+                        <input type="range" id="opacity" min="0.1" max="1" step="0.1" value="0.6" class="slider">
+                        <div class="range-value" id="opacityValueDisplay">0.6</div>
+                    </div>
+                </div>
+                
+                <div class="option-group">
+                    <h4><i class="fas fa-tools"></i> 优化选项</h4>
+                    <div class="checkbox-group">
+                        <input type="checkbox" id="compressPdf" checked>
+                        <label for="compressPdf">压缩输出PDF文件</label>
+                    </div>
+                    <div class="checkbox-group">
+                        <input type="checkbox" id="optimizeFonts">
+                        <label for="optimizeFonts">优化字体嵌入</label>
+                    </div>
+                </div>
+                
+                <div class="preview-container">
+                    <div class="preview-title">水印预览</div>
+                    <div class="watermark-preview" id="watermarkPreview">
+                        <!-- 水印预览将通过JavaScript动态添加 -->
+                    </div>
+                </div>
+            </div>
+            
+            <div class="panel">
+                <h2><i class="fas fa-file-pdf"></i> PDF文件处理</h2>
+                
+                <div class="form-group">
+                    <label>选择PDF文件</label>
+                    <div class="file-upload-area" id="fileUploadArea">
+                        <i class="fas fa-cloud-upload-alt"></i>
+                        <h3>点击或拖放PDF文件到这里</h3>
+                        <p>支持批量上传多个PDF文件</p>
+                        <input type="file" id="fileInput" accept=".pdf" multiple style="display: none;">
+                    </div>
+                    
+                    <div class="file-list" id="fileList">
+                        <p style="text-align: center; color: #7f8c8d; padding: 20px;">尚未选择任何文件</p>
+                    </div>
+                </div>
+                
+                <div class="progress-container" id="progressContainer">
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="progressFill"></div>
+                    </div>
+                    <div class="progress-text" id="progressText">正在处理 0/0</div>
+                </div>
+                
+                <div class="result-container" id="resultContainer">
+                    <h3><i class="fas fa-check-circle"></i> 处理完成</h3>
+                    <p>已成功为 <span id="processedCount">0</span> 个PDF文件添加水印</p>
+                    <ul class="result-list" id="resultList">
+                        <!-- 处理结果将在这里显示 -->
+                    </ul>
+                    
+                    <div class="batch-download-container" id="batchDownloadContainer" style="display: none;">
+                        <div class="batch-download-info">
+                            <i class="fas fa-file-archive"></i> 已生成ZIP压缩包，包含所有处理后的文件
+                        </div>
+                        <button class="btn btn-success" id="batchDownloadBtn">
+                            <i class="fas fa-download"></i> 批量下载全部文件 (ZIP)
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="buttons">
+                    <button class="btn btn-primary" id="processBtn">
+                        <i class="fas fa-magic"></i> 开始添加水印
+                    </button>
+                    <button class="btn btn-secondary" id="resetBtn">
+                        <i class="fas fa-redo"></i> 重置
+                    </button>
+                </div>
+            </div>
+        </div>
+        
+        <div class="footer">
+            <p>注意：此工具使用pdf-lib库处理PDF文件，支持中文字体嵌入。</p>
+            <p>开启压缩选项可显著减小输出文件大小，优化字体嵌入可避免重复嵌入相同字体。</p>
+            <p>© 2024 PDF水印批量处理工具 | 优化版</p>
+        </div>
+    </div>
+
+    <!-- 通知消息 -->
+    <div id="notification" class="notification">
+        <i class="fas fa-check-circle"></i>
+        <span id="notificationMessage">操作成功</span>
+    </div>
+
+    <script>
+        // DOM元素
+        const fileInput = document.getElementById('fileInput');
+        const fileUploadArea = document.getElementById('fileUploadArea');
+        const fileList = document.getElementById('fileList');
+        const processBtn = document.getElementById('processBtn');
+        const resetBtn = document.getElementById('resetBtn');
+        const watermarkPreview = document.getElementById('watermarkPreview');
+        const progressContainer = document.getElementById('progressContainer');
+        const progressFill = document.getElementById('progressFill');
+        const progressText = document.getElementById('progressText');
+        const resultContainer = document.getElementById('resultContainer');
+        const resultList = document.getElementById('resultList');
+        const processedCount = document.getElementById('processedCount');
+        const batchDownloadContainer = document.getElementById('batchDownloadContainer');
+        const batchDownloadBtn = document.getElementById('batchDownloadBtn');
+        const notification = document.getElementById('notification');
+        const notificationMessage = document.getElementById('notificationMessage');
+        
+        // 水印设置元素
+        const watermarkText = document.getElementById('watermarkText');
+        const watermarkAngle = document.getElementById('watermarkAngle');
+        const angleValueDisplay = document.getElementById('angleValueDisplay');
+        const fontSize = document.getElementById('fontSize');
+        const fontFamilyInput = document.getElementById('fontFamily');
+        const textColor = document.getElementById('textColor');
+        const colorPreview = document.getElementById('colorPreview');
+        const opacity = document.getElementById('opacity');
+        const opacityValueDisplay = document.getElementById('opacityValueDisplay');
+        const fontFileInput = document.getElementById('fontFile');
+        const fontCustomOption = document.getElementById('fontCustomOption');
+        const fontInfo = document.getElementById('fontInfo');
+        
+        // 优化选项
+        const compressPdf = document.getElementById('compressPdf');
+        const optimizeFonts = document.getElementById('optimizeFonts');
+        
+        // RGB颜色输入
+        const colorR = document.getElementById('colorR');
+        const colorG = document.getElementById('colorG');
+        const colorB = document.getElementById('colorB');
+        
+        // 字体选择
+        const fontOptions = document.querySelectorAll('.font-option');
+        
+        // 存储上传的文件和处理结果
+        let uploadedFiles = [];
+        let processedFiles = [];
+        
+        // 自定义字体
+        let customFontBytes = null;
+        let customFontName = null;
+        
+        // 字体缓存（避免重复嵌入相同字体）
+        let fontCache = new Map();
+        
+        // 初始化事件监听
+        function initEventListeners() {
+            // 文件上传区域点击事件
+            fileUploadArea.addEventListener('click', () => fileInput.click());
+            
+            // 文件输入变化事件
+            fileInput.addEventListener('change', handleFileSelect);
+            
+            // 拖放文件事件
+            fileUploadArea.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                fileUploadArea.style.backgroundColor = '#e8f4fc';
+                fileUploadArea.style.borderColor = '#2980b9';
+            });
+            
+            fileUploadArea.addEventListener('dragleave', () => {
+                fileUploadArea.style.backgroundColor = '#f8fafc';
+                fileUploadArea.style.borderColor = '#3498db';
+            });
+            
+            fileUploadArea.addEventListener('drop', (e) => {
+                e.preventDefault();
+                fileUploadArea.style.backgroundColor = '#f8fafc';
+                fileUploadArea.style.borderColor = '#3498db';
+                
+                if (e.dataTransfer.files.length) {
+                    fileInput.files = e.dataTransfer.files;
+                    handleFileSelect();
+                }
+            });
+            
+            // 水印设置变化事件
+            watermarkText.addEventListener('input', updateWatermarkPreview);
+            watermarkAngle.addEventListener('input', updateWatermarkPreview);
+            fontSize.addEventListener('change', updateWatermarkPreview);
+            opacity.addEventListener('input', updateWatermarkPreview);
+            
+            // 字体选择事件
+            fontOptions.forEach(option => {
+                option.addEventListener('click', (e) => {
+                    // 如果是自定义字体选项，触发文件选择
+                    if (option.id === 'fontCustomOption') {
+                        fontFileInput.click();
+                    } else {
+                        fontOptions.forEach(opt => opt.classList.remove('selected'));
+                        option.classList.add('selected');
+                        const selectedFont = option.getAttribute('data-font');
+                        fontFamilyInput.value = selectedFont;
+                        customFontBytes = null;
+                        customFontName = null;
+                        fontCache.clear(); // 清除字体缓存
+                        
+                        // 更新字体信息
+                        if (selectedFont === 'Helvetica') {
+                            fontInfo.innerHTML = '当前字体: Helvetica (标准字体，不支持中文)';
+                        } else if (selectedFont === 'Times-Roman') {
+                            fontInfo.innerHTML = '当前字体: Times Roman (标准字体，不支持中文)';
+                        } else if (selectedFont === 'Courier') {
+                            fontInfo.innerHTML = '当前字体: Courier (标准字体，不支持中文)';
+                        }
+                        
+                        updateWatermarkPreview();
+                    }
+                });
+            });
+            
+            // 自定义字体文件上传
+            fontFileInput.addEventListener('change', handleFontFileSelect);
+            
+            // RGB颜色输入事件
+            colorR.addEventListener('input', updateColorFromRGB);
+            colorG.addEventListener('input', updateColorFromRGB);
+            colorB.addEventListener('input', updateColorFromRGB);
+            
+            // 颜色选择器事件
+            textColor.addEventListener('input', updateRGBFromColor);
+            
+            // 处理按钮点击事件
+            processBtn.addEventListener('click', processFiles);
+            
+            // 重置按钮点击事件
+            resetBtn.addEventListener('click', resetAll);
+            
+            // 批量下载按钮点击事件
+            batchDownloadBtn.addEventListener('click', downloadAllFiles);
+            
+            // 角度滑块显示
+            watermarkAngle.addEventListener('input', () => {
+                angleValueDisplay.textContent = `${watermarkAngle.value}°`;
+                updateWatermarkPreview();
+            });
+            
+            // 透明度滑块显示
+            opacity.addEventListener('input', () => {
+                opacityValueDisplay.textContent = opacity.value;
+                updateWatermarkPreview();
+            });
+        }
+        
+        // 处理字体文件选择
+        function handleFontFileSelect(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+            
+            if (!file.name.toLowerCase().endsWith('.ttf') && !file.name.toLowerCase().endsWith('.otf')) {
+                showNotification('请选择.ttf或.otf格式的字体文件！', 'error');
+                return;
+            }
+            
+            const reader = new FileReader();
+            reader.onload = function(event) {
+                customFontBytes = event.target.result;
+                customFontName = file.name.replace(/\.[^/.]+$/, ""); // 移除扩展名
+                fontCache.clear(); // 清除字体缓存
+                
+                // 更新UI
+                fontOptions.forEach(opt => opt.classList.remove('selected'));
+                fontCustomOption.classList.add('selected');
+                fontFamilyInput.value = 'custom';
+                fontInfo.innerHTML = `当前字体: ${customFontName} (自定义字体，支持中文)`;
+                
+                showNotification(`字体文件 "${file.name}" 上传成功`, 'success');
+                
+                // 更新预览
+                updateWatermarkPreview();
+            };
+            
+            reader.onerror = function() {
+                showNotification('读取字体文件失败，请重试', 'error');
+            };
+            
+            reader.readAsArrayBuffer(file);
+        }
+        
+        // 从RGB更新颜色选择器
+        function updateColorFromRGB() {
+            const r = Math.min(255, Math.max(0, parseInt(colorR.value) || 0));
+            const g = Math.min(255, Math.max(0, parseInt(colorG.value) || 0));
+            const b = Math.min(255, Math.max(0, parseInt(colorB.value) || 0));
+            
+            colorR.value = r;
+            colorG.value = g;
+            colorB.value = b;
+            
+            const hexColor = rgbToHex(r, g, b);
+            textColor.value = hexColor;
+            colorPreview.style.backgroundColor = hexColor;
+            updateWatermarkPreview();
+        }
+        
+        // 从颜色选择器更新RGB
+        function updateRGBFromColor() {
+            const hex = textColor.value;
+            const rgb = hexToRgb(hex);
+            
+            if (rgb) {
+                colorR.value = rgb.r;
+                colorG.value = rgb.g;
+                colorB.value = rgb.b;
+                colorPreview.style.backgroundColor = hex;
+                updateWatermarkPreview();
+            }
+        }
+        
+        // RGB转十六进制
+        function rgbToHex(r, g, b) {
+            return "#" + ((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1).toUpperCase();
+        }
+        
+        // 十六进制转RGB
+        function hexToRgb(hex) {
+            const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+            return result ? {
+                r: parseInt(result[1], 16),
+                g: parseInt(result[2], 16),
+                b: parseInt(result[3], 16)
+            } : null;
+        }
+        
+        // 显示通知消息
+        function showNotification(message, type = 'success') {
+            notificationMessage.textContent = message;
+            notification.className = `notification ${type}`;
+            notification.style.display = 'flex';
+            
+            setTimeout(() => {
+                notification.style.display = 'none';
+            }, 3000);
+        }
+        
+        // 处理文件选择
+        function handleFileSelect() {
+            uploadedFiles = Array.from(fileInput.files);
+            updateFileList();
+        }
+        
+        // 更新文件列表显示
+        function updateFileList() {
+            if (uploadedFiles.length === 0) {
+                fileList.innerHTML = '<p style="text-align: center; color: #7f8c8d; padding: 20px;">尚未选择任何文件</p>';
+                return;
+            }
+            
+            let fileListHTML = '';
+            uploadedFiles.forEach((file, index) => {
+                const fileSize = (file.size / 1024).toFixed(2);
+                fileListHTML += `
+                    <div class="file-item">
+                        <div class="file-name"><i class="fas fa-file-pdf" style="color: #e74c3c; margin-right: 8px;"></i>${file.name}</div>
+                        <div class="file-size">${fileSize} KB</div>
+                        <div class="file-status status-pending">待处理</div>
+                    </div>
+                `;
+            });
+            
+            fileList.innerHTML = fileListHTML;
+        }
+        
+        // 更新文件状态
+        function updateFileStatus(index, status) {
+            const fileItems = fileList.querySelectorAll('.file-item');
+            if (fileItems[index]) {
+                const statusElement = fileItems[index].querySelector('.file-status');
+                statusElement.className = `file-status status-${status}`;
+                statusElement.textContent = 
+                    status === 'pending' ? '待处理' : 
+                    status === 'processing' ? '处理中' : 
+                    status === 'completed' ? '已完成' : 
+                    status === 'error' ? '错误' : status;
+            }
+        }
+        
+        // 更新水印预览
+        function updateWatermarkPreview() {
+            // 清空预览区域
+            watermarkPreview.innerHTML = '';
+            
+            // 获取水印设置
+            const text = watermarkText.value;
+            const angle = parseInt(watermarkAngle.value);
+            const size = parseInt(fontSize.value);
+            const family = fontFamilyInput.value === 'custom' ? 'Microsoft YaHei, sans-serif' : fontFamilyInput.value;
+            const color = textColor.value;
+            const opacityValue = parseFloat(opacity.value);
+            
+            // 如果没有文本，不显示预览
+            if (!text.trim()) return;
+            
+            // 将文本按行分割
+            const lines = text.split('\n').filter(line => line.trim() !== '');
+            
+            // 创建水印预览
+            const previewWidth = watermarkPreview.clientWidth;
+            const previewHeight = watermarkPreview.clientHeight;
+            
+            // 计算水印位置
+            const centerX = previewWidth / 2;
+            const centerY = previewHeight / 2;
+            
+            // 行间距（避免重叠）
+            const lineSpacing = size * 1.5;
+            
+            // 为每行文本创建一个水印元素
+            lines.forEach((line, index) => {
+                const watermarkElement = document.createElement('div');
+                watermarkElement.className = 'watermark-text';
+                watermarkElement.textContent = line;
+                
+                // 设置样式
+                watermarkElement.style.fontSize = `${size}px`;
+                watermarkElement.style.fontFamily = family;
+                watermarkElement.style.color = color.replace(')', `, ${opacityValue})`).replace('rgb', 'rgba');
+                watermarkElement.style.transform = `rotate(${angle}deg)`;
+                watermarkElement.style.left = `${centerX - 100}px`;
+                // 修正：每行水印分开，避免重叠
+                watermarkElement.style.top = `${centerY - (lines.length * lineSpacing / 2) + (index * lineSpacing)}px`;
+                
+                watermarkPreview.appendChild(watermarkElement);
+            });
+        }
+        
+        // 获取字体（使用缓存优化）
+        async function getFont(pdfDoc, watermarkSettings) {
+            const fontKey = watermarkSettings.fontFamily === 'custom' ? 
+                'custom_' + (customFontName || 'font') : 
+                watermarkSettings.fontFamily;
+            
+            // 如果优化字体选项开启且字体已缓存，使用缓存
+            if (optimizeFonts.checked && fontCache.has(fontKey)) {
+                console.log('使用缓存的字体:', fontKey);
+                return fontCache.get(fontKey);
+            }
+            
+            let font;
+            if (watermarkSettings.fontFamily === 'custom' && customFontBytes) {
+                try {
+                    console.log('嵌入自定义字体:', customFontName);
+                    // 嵌入自定义字体
+                    font = await pdfDoc.embedFont(customFontBytes, {
+                        subset: true // 字体子集化，只嵌入使用的字符
+                    });
+                    console.log('自定义字体嵌入成功');
+                } catch (fontError) {
+                    console.error('自定义字体嵌入失败:', fontError);
+                    throw new Error('自定义字体嵌入失败，请检查字体文件格式');
+                }
+            } else {
+                // 使用标准字体
+                try {
+                    const fontMap = {
+                        'Helvetica': window.PDFLib.StandardFonts.Helvetica,
+                        'Times-Roman': window.PDFLib.StandardFonts.TimesRoman,
+                        'Courier': window.PDFLib.StandardFonts.Courier
+                    };
+                    
+                    const fontKeyConst = fontMap[watermarkSettings.fontFamily] || window.PDFLib.StandardFonts.Helvetica;
+                    console.log('使用标准字体:', fontKeyConst);
+                    
+                    font = pdfDoc.embedStandardFont(fontKeyConst);
+                    console.log('标准字体嵌入成功');
+                } catch (fontError) {
+                    console.warn('标准字体嵌入失败，使用默认字体:', fontError);
+                    font = pdfDoc.embedStandardFont(window.PDFLib.StandardFonts.Helvetica);
+                }
+            }
+            
+            // 缓存字体
+            if (optimizeFonts.checked) {
+                fontCache.set(fontKey, font);
+            }
+            
+            return font;
+        }
+        
+        // 使用pdf-lib生成带水印的真实PDF - 优化版
+        async function generateWatermarkedPDF(file, watermarkSettings) {
+            try {
+                console.log(`开始处理文件: ${file.name}`);
+                
+                // 读取PDF文件
+                const arrayBuffer = await file.arrayBuffer();
+                
+                // 加载PDF文档并注册fontkit
+                const pdfDoc = await window.PDFLib.PDFDocument.load(arrayBuffer);
+                pdfDoc.registerFontkit(window.fontkit);
+                console.log('PDF文档加载成功');
+                
+                // 获取PDF的所有页面
+                const pages = pdfDoc.getPages();
+                console.log(`文档有 ${pages.length} 页`);
+                
+                // 获取水印颜色并转换为0-1范围
+                const rgb = hexToRgb(watermarkSettings.color);
+                console.log('水印颜色:', rgb);
+                
+                // 修正颜色格式：rgb()函数需要0-1之间的值
+                const color = window.PDFLib.rgb(
+                    rgb.r / 255, 
+                    rgb.g / 255, 
+                    rgb.b / 255
+                );
+                
+                const opacity = watermarkSettings.opacity;
+                console.log('水印透明度:', opacity);
+                
+                // 获取字体
+                const font = await getFont(pdfDoc, watermarkSettings);
+                
+                // 处理每一页
+                for (let pageIndex = 0; pageIndex < pages.length; pageIndex++) {
+                    const page = pages[pageIndex];
+                    const { width, height } = page.getSize();
+                    console.log(`页面 ${pageIndex + 1} 尺寸: ${width}x${height}`);
+                    
+                    // 将水印文本按行分割
+                    const lines = watermarkSettings.text.split('\n').filter(line => line.trim() !== '');
+                    
+                    // 检查是否有中文字符
+                    const hasChinese = lines.some(line => /[\u4e00-\u9fa5]/.test(line));
+                    
+                    // 如果使用标准字体但有中文，提示用户
+                    if (hasChinese && watermarkSettings.fontFamily !== 'custom') {
+                        console.warn('检测到中文字符，但使用的是标准字体，可能无法正确显示');
+                    }
+                    
+                    // 计算水印网格参数 - 根据页面大小动态调整
+                    const baseSpacing = Math.max(width, height) * 0.3; // 基础间距为页面最大尺寸的30%
+                    const gridSpacing = Math.min(300, baseSpacing); // 最大不超过300
+                    
+                    // 计算网格数量
+                    const xCount = Math.ceil(width / gridSpacing) + 1;
+                    const yCount = Math.ceil(height / gridSpacing) + 1;
+                    
+                    // 为每一行添加水印
+                    lines.forEach((line, lineIndex) => {
+                        if (!line.trim()) return;
+                        
+                        try {
+                            // 计算文本宽度
+                            const textWidth = font.widthOfTextAtSize(line, watermarkSettings.fontSize);
+                            
+                            // 计算文本高度（近似）
+                            const textHeight = watermarkSettings.fontSize;
+                            
+                            // 转换为弧度
+                            const angleRad = (watermarkSettings.angle % 360) * Math.PI / 180;
+                            const cosAngle = Math.cos(angleRad);
+                            const sinAngle = Math.sin(angleRad);
+                            
+                            // 行间距 - 避免多行水印重叠
+                            const lineSpacing = textHeight * 2;
+                            
+                            // 在页面上以网格形式添加多个水印
+                            for (let x = 0; x < xCount; x++) {
+                                for (let y = 0; y < yCount; y++) {
+                                    const baseX = x * gridSpacing;
+                                    const baseY = y * gridSpacing;
+                                    
+                                    // 计算旋转后的位置
+                                    const rotatedX = baseX * cosAngle - baseY * sinAngle;
+                                    const rotatedY = baseX * sinAngle + baseY * cosAngle;
+                                    
+                                    // 计算文本位置（居中显示）
+                                    const textX = width/3 + rotatedX - textWidth/2;
+                                    const textY = height/3 + rotatedY + (lineIndex - lines.length/2) * lineSpacing;
+                                    
+                                    // 确保水印在页面范围内
+                                    if (textX > -textWidth && textX < width + textWidth && 
+                                        textY > -textHeight && textY < height + textHeight) {
+                                        
+                                        // 添加水印文本
+                                        page.drawText(line, {
+                                            x: textX,
+                                            y: textY,
+                                            size: watermarkSettings.fontSize,
+                                            font: font,
+                                            color: color,
+                                            opacity: opacity,
+                                            rotate: window.PDFLib.degrees(watermarkSettings.angle),
+                                        });
+                                    }
+                                }
+                            }
+                            
+                            console.log(`页面 ${pageIndex + 1} 添加水印行 ${lineIndex + 1}: "${line}"`);
+                            
+                        } catch (drawError) {
+                            console.error(`绘制水印行 "${line}" 时出错:`, drawError);
+                            // 如果是字体不支持中文的错误，给出更明确的提示
+                            if (drawError.message && drawError.message.includes('glyph')) {
+                                throw new Error('字体不支持中文字符，请上传支持中文的字体文件');
+                            }
+                            throw drawError;
+                        }
+                    });
+                }
+                
+                // 保存PDF文档 - 根据选项进行压缩
+                console.log('正在保存PDF文档...');
+                const saveOptions = {};
+                
+                if (compressPdf.checked) {
+                    saveOptions.useObjectStreams = false; // 禁用对象流，减小文件大小
+                    saveOptions.addDefaultPage = false; // 不添加默认页面
+                    saveOptions.objectsPerTick = 100; // 优化对象处理
+                }
+                
+                const pdfBytes = await pdfDoc.save(saveOptions);
+                console.log('PDF文档保存成功，大小:', pdfBytes.length, '字节');
+                
+                // 创建Blob对象
+                const blob = new Blob([pdfBytes], { type: 'application/pdf' });
+                
+                // 保持原文件名 - 修改：不添加_watermarked后缀
+                const fileName = file.name;
+                
+                // 创建对象URL
+                const url = URL.createObjectURL(blob);
+                
+                console.log(`文件处理完成: ${fileName}, 原始大小: ${file.size}字节, 处理后大小: ${blob.size}字节`);
+                
+                return {
+                    name: fileName,
+                    blob: blob,
+                    url: url,
+                    originalSize: file.size,
+                    processedSize: blob.size
+                };
+                
+            } catch (error) {
+                console.error('生成水印PDF时出错:', error);
+                throw new Error(`处理文件 ${file.name} 失败: ${error.message}`);
+            }
+        }
+        
+        // 处理文件（使用pdf-lib添加水印）
+        async function processFiles() {
+            if (uploadedFiles.length === 0) {
+                showNotification('请先选择PDF文件！', 'error');
+                return;
+            }
+            
+            // 检查水印文本是否包含中文
+            const hasChinese = /[\u4e00-\u9fa5]/.test(watermarkText.value);
+            const usingCustomFont = fontFamilyInput.value === 'custom' && customFontBytes;
+            
+            if (hasChinese && !usingCustomFont) {
+                const confirmResult = confirm(
+                    '检测到水印文本包含中文，但您使用的是标准英文字体，可能无法正确显示中文。\n\n' +
+                    '建议上传支持中文的字体文件以获得最佳效果。\n\n' +
+                    '是否继续使用当前字体？'
+                );
+                
+                if (!confirmResult) {
+                    showNotification('已取消处理，请上传支持中文的字体文件', 'info');
+                    return;
+                }
+            }
+            
+            // 禁用处理按钮
+            processBtn.disabled = true;
+            processBtn.innerHTML = '<div class="spinner"></div> 处理中...';
+            
+            // 显示进度条
+            progressContainer.style.display = 'block';
+            resultContainer.style.display = 'none';
+            batchDownloadContainer.style.display = 'none';
+            
+            // 重置进度
+            progressFill.style.width = '0%';
+            progressText.textContent = `正在处理 0/${uploadedFiles.length}`;
+            
+            // 获取水印设置
+            const watermarkSettings = {
+                text: watermarkText.value,
+                angle: parseInt(watermarkAngle.value),
+                fontSize: parseInt(fontSize.value),
+                fontFamily: fontFamilyInput.value,
+                color: textColor.value,
+                opacity: parseFloat(opacity.value)
+            };
+            
+            console.log('水印设置:', watermarkSettings);
+            
+            // 清空之前的处理结果
+            processedFiles = [];
+            resultList.innerHTML = '';
+            
+            // 成功和失败计数
+            let successCount = 0;
+            let errorCount = 0;
+            
+            // 总大小变化统计
+            let totalOriginalSize = 0;
+            let totalProcessedSize = 0;
+            
+            // 处理每个文件
+            for (let i = 0; i < uploadedFiles.length; i++) {
+                const file = uploadedFiles[i];
+                
+                // 更新文件状态
+                updateFileStatus(i, 'processing');
+                
+                // 更新进度
+                const progressPercent = ((i + 1) / uploadedFiles.length) * 100;
+                progressFill.style.width = `${progressPercent}%`;
+                progressText.textContent = `正在处理 ${i+1}/${uploadedFiles.length}`;
+                
+                try {
+                    // 生成带水印的PDF
+                    console.log(`开始处理第 ${i+1} 个文件: ${file.name}`);
+                    const processedFile = await generateWatermarkedPDF(file, watermarkSettings);
+                    processedFiles.push(processedFile);
+                    
+                    // 更新统计
+                    totalOriginalSize += processedFile.originalSize;
+                    totalProcessedSize += processedFile.processedSize;
+                    
+                    // 更新文件状态
+                    updateFileStatus(i, 'completed');
+                    successCount++;
+                    
+                    // 添加到结果列表
+                    const resultItem = document.createElement('li');
+                    
+                    // 创建下载链接
+                    const downloadLink = document.createElement('a');
+                    downloadLink.className = 'download-link';
+                    downloadLink.href = processedFile.url;
+                    downloadLink.download = processedFile.name;
+                    downloadLink.innerHTML = `<i class="fas fa-download"></i> ${processedFile.name}`;
+                    
+                    const originalSizeKB = (processedFile.originalSize / 1024).toFixed(2);
+                    const processedSizeKB = (processedFile.processedSize / 1024).toFixed(2);
+                    const sizeChange = ((processedFile.processedSize - processedFile.originalSize) / processedFile.originalSize * 100).toFixed(1);
+                    
+                    const sizeSpan = document.createElement('span');
+                    sizeSpan.style.color = '#7f8c8d';
+                    sizeSpan.style.fontSize = '0.9rem';
+                    sizeSpan.innerHTML = `
+                        <span title="原始大小: ${originalSizeKB} KB">${processedSizeKB} KB</span>
+                        <span style="color: ${sizeChange > 0 ? '#e74c3c' : '#27ae60'}; font-size: 0.8rem;">
+                            (${sizeChange > 0 ? '+' : ''}${sizeChange}%)
+                        </span>
+                    `;
+                    
+                    resultItem.appendChild(downloadLink);
+                    resultItem.appendChild(sizeSpan);
+                    resultList.appendChild(resultItem);
+                    
+                    console.log(`文件 ${file.name} 处理成功`);
+                    
+                } catch (error) {
+                    console.error(`处理文件 ${file.name} 时出错:`, error);
+                    updateFileStatus(i, 'error');
+                    errorCount++;
+                    
+                    let errorMessage = error.message;
+                    if (errorMessage.includes('字体不支持中文字符')) {
+                        errorMessage = '字体不支持中文，请上传支持中文的字体文件';
+                    }
+                    
+                    showNotification(`处理文件 ${file.name} 时出错: ${errorMessage}`, 'error');
+                }
+            }
+            
+            // 更新最终进度
+            progressFill.style.width = '100%';
+            progressText.textContent = '处理完成！';
+            
+            // 显示结果
+            processedCount.textContent = successCount;
+            resultContainer.style.display = 'block';
+            
+            // 如果有处理成功的文件，显示批量下载按钮
+            if (successCount > 0) {
+                batchDownloadContainer.style.display = 'block';
+                
+                // 添加文件大小统计信息
+                const totalChange = ((totalProcessedSize - totalOriginalSize) / totalOriginalSize * 100).toFixed(1);
+                const sizeInfo = document.createElement('div');
+                sizeInfo.className = 'batch-download-info';
+                sizeInfo.innerHTML = `
+                    <i class="fas fa-file-archive"></i> 已生成ZIP压缩包，包含 ${successCount} 个文件
+                    <br>
+                    <small style="color: ${totalChange > 0 ? '#e74c3c' : '#27ae60'};">
+                        总大小变化: ${totalChange > 0 ? '+' : ''}${totalChange}%
+                        ${compressPdf.checked ? '(已压缩)' : '(未压缩)'}
+                    </small>
+                `;
+                batchDownloadContainer.insertBefore(sizeInfo, batchDownloadContainer.firstChild);
+            }
+            
+            // 启用处理按钮
+            processBtn.disabled = false;
+            processBtn.innerHTML = '<i class="fas fa-magic"></i> 开始添加水印';
+            
+            // 显示成功通知
+            let message = `成功处理 ${successCount} 个文件`;
+            if (errorCount > 0) {
+                message += `，失败 ${errorCount} 个文件`;
+            }
+            
+            const overallChange = ((totalProcessedSize - totalOriginalSize) / totalOriginalSize * 100).toFixed(1);
+            if (successCount > 0) {
+                message += `，总体积${overallChange > 0 ? '增加' : '减少'} ${Math.abs(overallChange)}%`;
+            }
+            
+            showNotification(message, errorCount > 0 ? 'info' : 'success');
+            
+            // 滚动到结果区域
+            resultContainer.scrollIntoView({ behavior: 'smooth' });
+            
+            // 调试信息
+            console.log(`处理完成: 成功 ${successCount} 个，失败 ${errorCount} 个`);
+            console.log(`总大小: 原始 ${(totalOriginalSize/1024).toFixed(2)}KB, 处理后 ${(totalProcessedSize/1024).toFixed(2)}KB, 变化 ${overallChange}%`);
+        }
+        
+        // 批量下载所有文件
+        async function downloadAllFiles() {
+            if (processedFiles.length === 0) {
+                showNotification('没有可下载的文件！', 'error');
+                return;
+            }
+            
+            try {
+                // 显示下载中状态
+                batchDownloadBtn.disabled = true;
+                batchDownloadBtn.innerHTML = '<div class="spinner"></div> 正在打包文件...';
+                
+                // 创建ZIP文件
+                const zip = new JSZip();
+                
+                // 添加所有文件到ZIP
+                for (let i = 0; i < processedFiles.length; i++) {
+                    const file = processedFiles[i];
+                    
+                    // 保持原文件名
+                    const originalFileName = file.name;
+                    zip.file(originalFileName, file.blob);
+                    
+                    // 更新进度
+                    if (processedFiles.length > 5) {
+                        const progressPercent = ((i + 1) / processedFiles.length) * 100;
+                        batchDownloadBtn.innerHTML = `<div class="spinner"></div> 打包中 ${Math.round(progressPercent)}%`;
+                    }
+                }
+                
+                // 生成ZIP文件
+                console.log('正在生成ZIP文件...');
+                const zipBlob = await zip.generateAsync({ type: "blob", compression: "DEFLATE" });
+                console.log('ZIP文件生成成功');
+                
+                // 下载ZIP文件
+                const timestamp = new Date().getTime();
+                const zipFileName = `watermarked_pdfs_${timestamp}.zip`;
+                saveAs(zipBlob, zipFileName);
+                
+                // 恢复按钮状态
+                batchDownloadBtn.disabled = false;
+                batchDownloadBtn.innerHTML = '<i class="fas fa-download"></i> 批量下载全部文件 (ZIP)';
+                
+                // 显示成功通知
+                showNotification(`已下载ZIP文件，包含 ${processedFiles.length} 个文件`);
+                
+            } catch (error) {
+                console.error('打包下载时出错:', error);
+                batchDownloadBtn.disabled = false;
+                batchDownloadBtn.innerHTML = '<i class="fas fa-download"></i> 批量下载全部文件 (ZIP)';
+                showNotification('打包下载时出错，请重试', 'error');
+            }
+        }
+        
+        // 重置所有设置
+        function resetAll() {
+            // 重置文件
+            fileInput.value = '';
+            uploadedFiles = [];
+            updateFileList();
+            
+            // 重置水印设置
+            watermarkText.value = '内部文件\n请勿外传\n2024年';
+            watermarkAngle.value = 330;
+            angleValueDisplay.textContent = '330°';
+            fontSize.value = '24';
+            
+            // 重置字体选择
+            fontOptions.forEach(opt => opt.classList.remove('selected'));
+            document.getElementById('fontHelvetica').classList.add('selected');
+            fontFamilyInput.value = 'Helvetica';
+            fontInfo.innerHTML = '当前字体: Helvetica (标准字体，不支持中文)';
+            
+            // 重置自定义字体
+            customFontBytes = null;
+            customFontName = null;
+            fontFileInput.value = '';
+            fontCache.clear();
+            
+            // 重置颜色为 R=233, G=235, B=237
+            textColor.value = '#E9EBED';
+            colorR.value = '233';
+            colorG.value = '235';
+            colorB.value = '237';
+            colorPreview.style.backgroundColor = '#E9EBED';
+            
+            opacity.value = 0.6;
+            opacityValueDisplay.textContent = '0.6';
+            
+            // 重置优化选项
+            compressPdf.checked = true;
+            optimizeFonts.checked = false; // 修改：默认不勾选
+            
+            // 隐藏进度和结果
+            progressContainer.style.display = 'none';
+            resultContainer.style.display = 'none';
+            batchDownloadContainer.style.display = 'none';
+            
+            // 启用处理按钮
+            processBtn.disabled = false;
+            processBtn.innerHTML = '<i class="fas fa-magic"></i> 开始添加水印';
+            
+            // 更新预览
+            updateWatermarkPreview();
+            
+            // 释放之前创建的URL对象
+            processedFiles.forEach(file => {
+                if (file.url) {
+                    try {
+                        URL.revokeObjectURL(file.url);
+                    } catch (e) {
+                        console.warn('释放URL时出错:', e);
+                    }
+                }
+            });
+            processedFiles = [];
+            
+            // 显示重置提示
+            showNotification('所有设置已重置！', 'info');
+        }
+        
+        // 页面加载完成后初始化
+        document.addEventListener('DOMContentLoaded', () => {
+            initEventListeners();
+            updateWatermarkPreview();
+            
+            // 设置初始颜色预览
+            colorPreview.style.backgroundColor = textColor.value;
+            
+            // 初始化RGB输入
+            updateRGBFromColor();
+            
+            // 测试pdf-lib是否可用
+            if (window.PDFLib) {
+                console.log('PDFLib库已加载:', window.PDFLib);
+            } else {
+                console.error('PDFLib库未加载，请检查网络连接');
+                showNotification('PDF处理库加载失败，请刷新页面重试', 'error');
+            }
+            
+            // 测试fontkit是否可用
+            if (window.fontkit) {
+                console.log('Fontkit库已加载:', window.fontkit);
+            } else {
+                console.error('Fontkit库未加载，可能影响自定义字体功能');
+            }
+        });
+        
+        // 调整窗口大小时更新预览
+        window.addEventListener('resize', updateWatermarkPreview);
+        
+        // 页面卸载前释放URL对象
+        window.addEventListener('beforeunload', () => {
+            processedFiles.forEach(file => {
+                if (file.url) {
+                    try {
+                        URL.revokeObjectURL(file.url);
+                    } catch (e) {
+                        console.warn('释放URL时出错:', e);
+                    }
+                }
+            });
+        });
+    </script>
+</body>
+</html>
